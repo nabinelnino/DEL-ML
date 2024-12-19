@@ -1,0 +1,18 @@
+ml_config:
+  # input_data_path: "./data/raw/S202309_WDR91.tsv.gz" #provide path of the data to be passed for ml model (local file dir or gcp gsutil url )
+  input_data_path: "./data/raw/subset_WDR91" #provide path of the data to be passed for ml model (local file dir or gcp gsutil url )
+  columns_of_interest:
+    - ECFP4
+  target_col: Label
+  is_binarized_data: True
+  cluster_generation: True
+  model_name: WDR91_bECFP4_Final
+  processed_file_location: "./processed_files/processed_data_dictionary.yaml"
+  smile_location: ./data/smiles/dataset_xaa_enamine_dataset.csv
+  result_output: ./data/processed/sample_enamin_subset.smi
+  isdry_run: False
+
+  
+
+  # docker cp ml-scripts-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi .
+

@@ -1,0 +1,17 @@
+# Ignore data directory to avoid large uploads
+# data/
+
+
+# Ignore any temporary files or logs
+*.log
+*.pyc
+__pycache__/
+
+# Ignore the API folder when building the main Dockerfile
+API/
+venv/
+nominations/
+
+# Ignore unnecessary files for container build
+.dockerignore
+# .docker-compose.yaml

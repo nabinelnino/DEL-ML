@@ -1,0 +1,8 @@
+fastapi[standard]
+numpy
+mlflow
+lightgbm[scikit-learn]
+google-cloud-storage
+tqdm
+rdkit
+python-dotenv

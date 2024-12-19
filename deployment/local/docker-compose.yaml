@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+  mlflow-app:
+    build:
+      context: ../../
+      dockerfile: docker/Dockerfile
+
+    ports:
+      - "${PORT:-5001}:5000"
+    volumes:
+      - ${SERVICE_ACCOUNT_PATH:-/dev/null}:/app/service_account.json:ro # Mount service account if provided
+      - ./configs:/app/config
+      - .env:/app/.env
+    environment:
+      - MLFLOW_TRACKING_URI
+      - GOOGLE_APPLICATION_CREDENTIALS
+      - PYTHONUNBUFFERED=1
+      - CONFIG_FILE=/app/config/app-config.json
+    env_file:
+      - .env
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge
+# docker-compose up -d
+# docker-compose logs -f
+# docker-compose down -v
+# rm -rf mlruns/*
+# rm -rf models/*

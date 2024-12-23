@@ -8,14 +8,10 @@ ml_config:
   is_binarized_data: True
   cluster_generation: True
   model_name: WDR91_ECFP4-test-vertex
-  # processed_file_location: "./processed_files/processed_data_dictionary.yaml"
-  processed_file_location: gs://test-aircheck/mlops-test/process_final_vertexaitest12.yaml
-  # smile_location: ./data/smiles/mcule_purchasable_full_241101.smi
-  # smile_location: "./data/smiles/dataset_xaa_enamine_dataset.csv"
-  # result_output: "./data/processed/sample_enamin_subset.smi"
+  processed_file_location: gs://test-aircheck/mlops-test/processed_targets.yaml
   isdry_run: True
   smile_location: gs://enamine-vs/dataset/
-  result_output: gs://test-aircheck/mlops-test/enamine_WDR91_test_mp.smi
+  result_output: gs://test-aircheck/mlops-test/enamine_WDR91_final.smi
   model_save_directory: "/app/models"
   
   

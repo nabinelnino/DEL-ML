@@ -1,9 +1,3 @@
-####
-
-<!-- Create venv-
-conda -v <nameofvenv> python=3.12
-conda activate <name> -->
-
 # README
 
 ## Overview
@@ -104,7 +98,7 @@ ml_config:
 - If you have your own hosted MLflow server, specify its URL in the `.env` file under `MLFLOW_TRACKING_URI`.
 - If no MLflow server is specified, the program will automatically spin up a local MLflow server.
 
-## Port Configuration (if you opt to use local mlflow server)
+## Port Configuration
 
 - The default port for the local MLflow server is `5001`.
 - If this port is occupied, modify the port number in the `.env` file.
@@ -117,20 +111,105 @@ ml_config:
   ```
   cd deployment/local
   ```
-- Modify the contents of the `ml_config` file of the config folder to point to the appropriate paths for `input_data_path`, `smile_location`, and `result_output` and change the `.env` file if needed.
+- Modify the contents of the `config` file and `.env` file if needed.
+- download WDR91 target and place the datafile inside data/raw folder
 - In the `.env` file:
+
   - If you have a hosted MLflow server, specify its URL under `MLFLOW_TRACKING_URI`.
   - Otherwise, leave it as is to use the local MLflow server.
+
+  **Running and Managing the Program**:
+
+  - To start the program, run: `make up-local`.
+  - To rebuild the Docker image, use: `make rebuild`.
+  - To clean up and remove all resources, execute: `make prune`.
 
 ### 2. For GCP
 
 - Update the `ml_config` file of the config folder to point to the appropriate GCP paths for `input_data_path`, `smile_location`, and `result_output`.
 - Ensure GCP credentials are set up and accessible to the application.
 
-### 3. Running the Training Process
+#### 1. **Run Locally with GCP Integration**
 
-- Execute the training process using the provided scripts or Docker commands.
-- The model will be trained and saved inside the container image for further use in screening and API predictions.
+- **Purpose**: Use GCP Storage for managing data and results while running the model locally in Docker.
+- **Steps**:
+
+  1. Configure the system to:
+     - Read the target data from a GCP bucket.
+     - Track trained model names and metadata in a GCP Storage bucket.
+     - Store the final screened compound back to the GCP bucket.
+  2. Navigate to the `DEL-ML` repository
+     `cd DEL-ML`
+
+  3. Prepare the configuration:
+     - Update the configuration file and `.env` file with the necessary GCP settings. (Rename `env_example` to `.env` if not already done.)
+  4. Run the program:
+     `make up-local`
+  5. To rebuild the Docker image:
+     `make rebuild`
+  6. To clean up and start over:
+     `make prune`
+
+#### 2. **Run on GCP Vertex AI**
+
+- **Purpose**: Build and deploy the model using GCP's Vertex AI for scalable training and screen.
+- **Steps**:
+  1. Build the Docker image:
+     `make build`
+  2. Push the image to GCP Container Registry:
+     `make push`
+  3. Use the pushed image in Vertex AI to run a custom training job.
+     - Define a Vertex AI custom job configuration, including the Docker image URI and any required arguments or environment variables.
+     - Submit the job to Vertex AI.
+
+### 3. Running the Prediction API
+
+This process includes a prediction API built using FastAPI, which utilizes a trained model from the local Docker image to predict compounds. To use the API, follow these steps:
+
+To start the API, follow these steps:
+
+1. Navigate to the `API` folder:
+   `cd API`
+2. Start the API using Docker Compose:
+
+   `docker-compose up --build`
+
+3. Access the FastAPI documentation:
+
+   - Open your browser and go to `http://0.0.0.0:8000/docs`.
+   - Follow steps 1 to 4 below to use the API.
+
+   ### **Steps to Use the Prediction API**
+
+4. **Access the Local MLflow Server**:
+
+   - Navigate to the local MLflow server at `http://localhost:5001`.
+   - Click on the **Experiments** tab.
+     ![[image.png]]
+
+5. **Retrieve the Model's `run_id`**:
+
+   - Select the name of the experiment from the list.
+   - Click on the model name.
+   - Copy the `run_id` for the model.
+     ![[img2.png]]
+     ![[img3.png]]
+
+6. **Use the Prediction API**:
+
+   - Go to the FastAPI server interface.
+   - Paste the copied `run_id` into the designated field.
+   - Provide input data in one of the following formats:
+     - A single valid compound.
+     - A list of compounds separated by commas.
+     - A CSV file containing compounds.
+
+7. **Run the Prediction**:
+
+   - Upload the data and click the **Process** button.
+   - The predictions for each compound will be displayed.
+
+Ensure the inputs are valid to get accurate predictions.
 
 ## Notes
 

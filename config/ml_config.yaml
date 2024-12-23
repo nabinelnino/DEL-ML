@@ -1,7 +1,5 @@
 ml_config:
-  # input_data_path: "gs://aircheck-ml-ready/S202309/WDR91.tsv.gz" 
   input_data_path: "gs://test-aircheck/mlops-test/subset_WDR91" 
-  # input_data_path: "./data/raw/subset_WDR91"
   columns_of_interest:
     - ECFP4
   target_col: Label
@@ -16,5 +14,4 @@ ml_config:
   
   
 
-  # docker cp ml-scripts-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi .
 

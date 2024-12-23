@@ -14,5 +14,4 @@ ml_config:
 
   
 
-  # docker cp ml-scripts-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi .
 

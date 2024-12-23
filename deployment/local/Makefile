@@ -57,7 +57,7 @@ rebuild:
 
 
 copy_prediction:
-	docker cp ml-scripts-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi ./data/processed/
+	docker cp local-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi ../../data/processed/
 
 .PHONY: build run stop rm-containers rm-images clean compose-down prune rebuild
 

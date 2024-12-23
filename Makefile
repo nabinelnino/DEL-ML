@@ -31,24 +31,11 @@ up-background:
 	docker-compose up -d
 	@echo "Services started in detached mode. Use 'make logs' to view logs."
 
-logs:
-	docker-compose logs -f
 
-# Run the Docker container
-run:
-	docker run -p 127.0.0.1:8080:8080 ml-app
 
 # Stop all running containers
 stop:
 	@docker stop $$(docker ps -q) 2>/dev/null || true
-
-# Remove all containers
-rm-containers:
-	@docker rm $$(docker ps -aq) 2>/dev/null || true
-
-# Remove all images
-rm-images:
-	@docker rmi $$(docker images -q) -f 2>/dev/null || true
 
 # Remove all stopped containers and unused images
 clean: stop rm-containers rm-images
@@ -72,4 +59,3 @@ copy_prediction:
 .PHONY: build run stop rm-containers rm-images clean compose-down prune rebuild
 
 
-#  docker cp ml-scripts-mlflow-app-1:/app/data/processed/sample_enamin_subset.smi .

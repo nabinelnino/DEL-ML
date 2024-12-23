@@ -128,6 +128,7 @@ ml_config:
 
 - Update the `ml_config` file of the config folder to point to the appropriate GCP paths for `input_data_path`, `smile_location`, and `result_output`.
 - Ensure GCP credentials are set up and accessible to the application.
+- rename env_example file to .env
 
 #### 1. **Run Locally with GCP Integration**
 

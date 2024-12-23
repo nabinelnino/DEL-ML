@@ -29,24 +29,13 @@ def main(config_file: str):
     X, y = reader._read_data(file_path=dataset_location, fps=training_cols,
                              label=label_col, model_name=model_name, config_file_path=config_location, binarize=is_binary, dry_run=isdry_run)
 
-    print(len(X), len(y))
-    count_zeros = np.sum(y == 0)
-    count_ones = np.sum(y == 1)
-
-    print(f"Number of 0s: {count_zeros}")
-    print(f"Number of 1s: {count_ones}")
-    print(X.keys())
-
     for _, fp_val in X.items():
         clusters = reader.cluster_leader_from_array(fp_val)
-    print("finalize clustering data----")
     model = Model(model_file_path)
-    # model.cv(train_data=X, binary_labels=y, source=dataset_location,
-    #          model_name=model_name, config_path=config_location, clusters=clusters)
+    model.cv(train_data=X, binary_labels=y, source=dataset_location,
+             model_name=model_name, config_path=config_location, clusters=clusters)
     model.fit(train_data=X, binary_labels=y, source=dataset_location,
               model_name=model_name, config_path=config_location, clusters=clusters,)
-
-    print("Process fininshed-----")
 
     t2 = time.time()
 
@@ -61,7 +50,6 @@ if __name__ == "__main__":
     parser.add_argument('--config', default='config/default_config.yaml',
                         help='Path to configuration file')
     args = parser.parse_args()
-    print("arrrrrr", args.config)
     main(args.config)
 
 # Total process time 1465.4664180278778 using vertex ai core 8

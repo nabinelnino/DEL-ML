@@ -58,24 +58,4 @@ EXPOSE 8080
 USER appuser
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-# CMD ["python", "-m", "src", "/app/config/app-config.json"]
 
-
-
-# docker build -t ml-app .   
-# docker run -p 127.0.0.1:8080:8080 ml-app
-# docker rmi $(docker images -q) -f
-# docker-compose down --rmi all
-
-
-
-# Stop all running containers
-# docker stop $(docker ps -q)
-
-# # Remove all containers
-# docker rm $(docker ps -aq)
-
-# # Remove all images
-# docker rmi $(docker images -q)
-
-# docker build -t api-module ./API

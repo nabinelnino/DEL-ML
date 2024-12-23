@@ -445,26 +445,26 @@ class Model:
                             with open(self.model_file_path, 'wb') as files:
                                 pickle.dump(clf, files)
 
-                    # mlflow.log_metric("mean_precision", np.mean(
-                    #     self.overall_metrics["precision"]))
-                    # mlflow.log_metric("mean_recall", np.mean(
-                    #     self.overall_metrics["recall"]))
-                    # mlflow.log_metric("mean_balanced_accuracy", np.mean(
-                    #     self.overall_metrics["balanced_accuracy"]))
-                    # mlflow.log_metric("mean_AUC_ROC", np.mean(
-                    #     self.overall_metrics["AUC_ROC"]))
-                    # mlflow.log_metric("mean_AUC_PR", np.mean(
-                    #     self.overall_metrics["AUC_PR"]))
-                    # mlflow.log_metric("mean_PlatePPV", np.mean(
-                    #     self.overall_metrics["PlatePPV"]))
-                    # mlflow.log_metric("mean_DivPlatePPV", np.mean(
-                    #     self.overall_metrics["DivPlatePPV"]))
+                    mlflow.log_metric("mean_precision", np.mean(
+                        self.overall_metrics["precision"]))
+                    mlflow.log_metric("mean_recall", np.mean(
+                        self.overall_metrics["recall"]))
+                    mlflow.log_metric("mean_balanced_accuracy", np.mean(
+                        self.overall_metrics["balanced_accuracy"]))
+                    mlflow.log_metric("mean_AUC_ROC", np.mean(
+                        self.overall_metrics["AUC_ROC"]))
+                    mlflow.log_metric("mean_AUC_PR", np.mean(
+                        self.overall_metrics["AUC_PR"]))
+                    mlflow.log_metric("mean_PlatePPV", np.mean(
+                        self.overall_metrics["PlatePPV"]))
+                    mlflow.log_metric("mean_DivPlatePPV", np.mean(
+                        self.overall_metrics["DivPlatePPV"]))
 
-                    # # Standard deviation metrics can also be logged
-                    # mlflow.log_metric("std_precision", np.std(
-                    #     self.overall_metrics["precision"]))
-                    # mlflow.log_metric("std_recall", np.std(
-                    #     self.overall_metrics["recall"]))
+                    # Standard deviation metrics can also be logged
+                    mlflow.log_metric("std_precision", np.std(
+                        self.overall_metrics["precision"]))
+                    mlflow.log_metric("std_recall", np.std(
+                        self.overall_metrics["recall"]))
 
                 except Exception as e:
                     data = ManageModelDataset()

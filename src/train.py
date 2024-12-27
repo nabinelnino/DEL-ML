@@ -327,6 +327,7 @@ class Model:
         self.output_path = ""
         self.overall_metrics = {}
         self.model_name = ""
+        self._fp_func = []
         self.model_file_path = model_file_path
 
     def save_models(self, models, save_path):
@@ -541,6 +542,7 @@ class Model:
             }
             with mlflow.start_run(run_name="lgbm_"+str("test_run")) as run:
                 try:
+                    self._fp_func = list(train_data.keys())
 
                     mlflow.log_param("featurizer", self._fp_func)
                     mlflow.set_tag("model_type", "lgbm")

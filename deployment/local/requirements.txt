@@ -1,0 +1,13 @@
+fastapi
+numpy
+mlflow
+# lightgbm
+# scikit-learn
+lightgbm[scikit-learn]
+google-cloud-storage
+tqdm
+rdkit
+python-dotenv
+
+
+# conda install -c conda-forge lightgbm

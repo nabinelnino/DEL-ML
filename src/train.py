@@ -390,6 +390,7 @@ class Model:
             self._fp_func = list(train_data.keys())
             model_save_dir = "models"
             os.makedirs(model_save_dir, exist_ok=True)
+            # os.makedirs(self.model_file_path, exist_ok=True)
 
             with mlflow.start_run(run_name="lgbm_"+str("test_run")) as run:
                 try:

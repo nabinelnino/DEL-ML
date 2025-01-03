@@ -4,16 +4,19 @@ services:
   mlflow-app:
     build:
       context: ../../
-      dockerfile: docker/Dockerfile
-
+      dockerfile: deployment/local/docker/Dockerfile
     ports:
-      - "${PORT:-5001}:5000"
+      - "${PORT:-5001}:5001"
     volumes:
       - ${SERVICE_ACCOUNT_PATH:-/dev/null}:/app/service_account.json:ro # Mount service account if provided
       - ./configs:/app/config
+      - ../../src:/app/src
+      - ../../screen:/app/screen
+      - ../../utils:/app/utils
+      - ../../data:/app/data
       - .env:/app/.env
     environment:
-      - MLFLOW_TRACKING_URI
+      # - MLFLOW_TRACKING_URI
       - GOOGLE_APPLICATION_CREDENTIALS
       - PYTHONUNBUFFERED=1
       - CONFIG_FILE=/app/config/app-config.json

@@ -373,7 +373,7 @@ class Screen:
             bucket_name, file_path = self._parse_gcp_path(file_path)
             files = ManageModelDataset.list_files_in_gcs_folder(
                 bucket_name, file_path)
-            files = files[:6]
+            files = files[:100]
 
             num_cores = multiprocessing.cpu_count()-1
             logging.info(f"Using {num_cores} cores for processing")
@@ -432,7 +432,7 @@ class Screen:
                     else:
                         # Append None if name column is missing
                         names.append(None)
-                if (count % 10000) == 0:
+                if (count % 50000) == 0:
                     print(f"Processing file {file_path}: \
                                  {count} compounds processed")
 
@@ -611,7 +611,6 @@ if __name__ == "__main__":
     parser.add_argument('--config', default='config/default_config.yaml',
                         help='Path to configuration file')
     args = parser.parse_args()
-    print("arrrrrr", args.config)
     t1 = time.time()
     config = MLConfigParser(config_file, "ml_config")
     config_dict = config.get_config()

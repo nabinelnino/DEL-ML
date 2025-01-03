@@ -12,6 +12,8 @@ def main(config_file: str):
     t1 = time.time()
     config = MLConfigParser(config_file, "ml_config")
     config_dict = config.get_config()
+    print("Config dict is---", config_dict)
+    # exit()
     training_cols = config_dict.get("columns_of_interest")
     label_col = config_dict.get("target_col")
     is_binary = config_dict.get("is_binarized_data")
@@ -54,3 +56,6 @@ if __name__ == "__main__":
 
 # Total process time 1465.4664180278778 using vertex ai core 8
 # python -m src --config ./config/ml_config.yaml
+
+
+#  python -m src --config ./deployment/local/configs/ml_config.yaml

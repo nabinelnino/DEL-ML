@@ -12,8 +12,6 @@ def main(config_file: str):
     t1 = time.time()
     config = MLConfigParser(config_file, "ml_config")
     config_dict = config.get_config()
-    print("Config dict is---", config_dict)
-    # exit()
     training_cols = config_dict.get("columns_of_interest")
     label_col = config_dict.get("target_col")
     is_binary = config_dict.get("is_binarized_data")

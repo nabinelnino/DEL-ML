@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Copy only requirements file first to leverage Docker cache
 COPY requirements.txt .
 
@@ -21,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Final stage
 FROM python:3.12-slim
 
-# Install runtime dependencies
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
@@ -34,19 +35,27 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Set environment variables
-ENV MLFLOW_TRACKING_URI="http://localhost:5000"
+ENV MLFLOW_TRACKING_URI=''
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV USE_EXTERNAL_MLFLOW=${USE_EXTERNAL_MLFLOW}
 
-# Copy application files
 COPY . .
 
-# Expose ports
-EXPOSE 5000 8080
+# Create entrypoint script before switching user
+COPY entrypoint.sh /app/entrypoint.sh
 
-# Run MLflow server and the application
-CMD mlflow server --host 0.0.0.0 --port 5000 & \
-    sleep 5 && \
-    python -m src --config=config/ml_config.yaml && \
-    python -m screen --config=config/ml_config.yaml && \
-    tail -f /dev/null
+
+# Set permissions before switching user
+RUN chmod +x /app/entrypoint.sh && \
+    # Create non-root user and set ownership
+    useradd -m -r appuser && \
+    chown -R appuser:appuser /app
+
+
+EXPOSE 8080   
+# Switch to non-root user
+USER appuser
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+

@@ -1,12 +1,13 @@
 ml_config:
-  input_data_path: "gs://test-aircheck/mlops-test/subset_WDR91" 
+  # input_data_path: "gs://test-aircheck/mlops-test/subset_WDR91" 
+  input_data_path: "gs://aircheck-ml-ready/S202309/WDR91.tsv.gz" 
   columns_of_interest:
     - ECFP4
   target_col: Label
   is_binarized_data: True
   cluster_generation: True
-  model_name: WDR91_ECFP4-test-vertex
-  processed_file_location: gs://test-aircheck/mlops-test/processed_targets.yaml
+  model_name: WDR91_ECFP4
+  processed_file_location: gs://test-aircheck/mlops-live/processed_targets.yaml
   isdry_run: True
   smile_location: gs://enamine-vs/dataset/
   result_output: gs://test-aircheck/mlops-test/enamine_WDR91_final.smi

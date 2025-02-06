@@ -10,6 +10,7 @@ import pandas as pd
 import io
 import os
 import numpy as np
+import requests
 from app.fps_conversion import screen_smiles
 
 app = FastAPI()
@@ -31,17 +32,19 @@ class InputModel(BaseModel):
 @app.post("/process-input/")
 async def process_input(
     run_id: str,
+    mlflow_url: str,
     text_input: Union[str, List[str], None] = Body(
         default=None),
     file: Union[UploadFile, None] = File(None)
 ):
     mlflow_tracking_uri = os.getenv(
         'MLFLOW_TRACKING_URI')
-    if not mlflow_tracking_uri:
-        return {"message": "please provide ml server host url in the .env file"}
-
+    # if not mlflow_tracking_uri:
+    #     return {"message": "please provide ml server host url in the .env file"}
+    # mlflow_tracking_uri = "http://35.196.43.87:5000/"
+    mlflow_tracking_uri = mlflow_url
     mlflow.set_tracking_uri(mlflow_tracking_uri)
-
+    print("mlflow server-----", mlflow_tracking_uri)
     logged_model = f"runs:/{run_id}/model"
     loaded_model = mlflow.lightgbm.load_model(logged_model)
     # res = screen_smiles(loaded_model, [compound], ["HitGenBinaryECFP4"])
@@ -69,7 +72,12 @@ async def process_input(
 
             res = screen_smiles(loaded_model, result_list, [
                                 "HitGenBinaryECFP4"])
-            return res
+            # return res
+            return {
+                "message": "File processed successfully",
+                "smiles_name": result_list,
+                "result": res,
+            }
 
     # Process file input
 
@@ -110,11 +118,7 @@ async def process_input(
 
             return {
                 "message": "File processed successfully" + (" (truncated to first 10 rows)" if truncated else ""),
-                "filename": file.filename,
-                "content_type": file.content_type,
-                "row_count": len(df),
-                "columns": df.columns.tolist(),
-                "first_few_rows": smiles_list,
+                "smiles_name": smiles_list,
                 "result": res,
             }
 
@@ -132,6 +136,45 @@ async def process_input(
     raise HTTPException(
         status_code=400,
         detail="Invalid input type"
+    )
+
+
+@app.post("/get-metrics/")
+async def get_metrics(mlflow_server_url: str, run_id: str):
+
+    url = f"{mlflow_server_url}/api/2.0/mlflow/runs/get"
+
+    # Query parameters
+    params = {
+        'run_id': run_id
+    }
+
+    # Send GET request to MLflow server
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Failed to fetch data from MLflow server: {response.text}"
+        )
+
+    # Parse the JSON response
+    run_data = response.json()
+    print("run data_", run_data)
+
+    # Extract metrics
+    metrics = run_data['run']['data']['metrics']
+
+    # Print metrics
+    print("Metrics:", metrics)
+    if metrics:
+        return {
+            "status": "success",
+            "message": "Metrics retrieved successfully",
+            "result": metrics,
+        }
+    raise HTTPException(
+        status_code=400,
+        detail="Metrics not found for the given run ID."
     )
 
 

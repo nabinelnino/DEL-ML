@@ -59,7 +59,6 @@ load_dotenv()
 warnings.filterwarnings(
     "ignore", message="'force_all_finite' was renamed to 'ensure_all_finite'")
 
-# mlflow.set_tracking_uri("http://34.130.56.87:5000/")
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 service_account_path = '../service_account.json'
@@ -115,7 +114,6 @@ def to_list(obj):
 
 
 # some custom metrics on early enrichment
-# (from https://chemrxiv.org/engage/chemrxiv/article-details/6585ddc19138d23161476eb1)
 
 def plate_ppv(y, y_pred, top_n: int = 128):
     y_pred = np.atleast_1d(y_pred)
@@ -261,19 +259,19 @@ class TopTor(Basefpfunc):
             AllChem.GetHashedTopologicalTorsionFingerprint, **self._kwargs)
 
 
-FPS_FUNCS = {'HitGenBinaryECFP4': ECFP4(),
-             'HitGenBinaryECFP6': ECFP6(),
-             'HitGenBinaryFCFP4': FCFP4(),
-             'HitGenBinaryFCFP6': FCFP6(),
-             '2048-bECFP4': BinaryECFP4(),
-             '2048-bECFP6': BinaryECFP6(),
-             '2048-bFCFP4': BinaryFCFP4(),
-             '2048-bFCFP6': BinaryFCFP6(),
-             'HitGenBinaryMACCS': MACCS(),
-             'HitGenBinaryRDK': RDK(),
-             'HitGenBinaryAvalon': Avalon(),
-             'HitGenBinaryAtomPair': AtomPair(),
-             'HitGenBinaryTopTor': TopTor()}
+# FPS_FUNCS = {'HitGenBinaryECFP4': ECFP4(),
+#              'HitGenBinaryECFP6': ECFP6(),
+#              'HitGenBinaryFCFP4': FCFP4(),
+#              'HitGenBinaryFCFP6': FCFP6(),
+#              '2048-bECFP4': BinaryECFP4(),
+#              '2048-bECFP6': BinaryECFP6(),
+#              '2048-bFCFP4': BinaryFCFP4(),
+#              '2048-bFCFP6': BinaryFCFP6(),
+#              'HitGenBinaryMACCS': MACCS(),
+#              'HitGenBinaryRDK': RDK(),
+#              'HitGenBinaryAvalon': Avalon(),
+#              'HitGenBinaryAtomPair': AtomPair(),
+#              'HitGenBinaryTopTor': TopTor()}
 
 
 def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):

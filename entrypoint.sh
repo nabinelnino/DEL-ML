@@ -9,8 +9,6 @@ else
 fi
 echo "MLFLOW_TRACKING_URI is set to: $MLFLOW_TRACKING_URI"
 
-
-
 # MLFLOW_TRACKING_URI="http://34.130.56.87:5000/"
 # USE_EXTERNAL_MLFLOW=true
 echo "MLFLOW_TRACKING_URI is set to: $MLFLOW_TRACKING_URI"
@@ -39,11 +37,15 @@ fi
 
 sleep 5
 
+echo "Looking for config at: ${1:-/app/config/ml_config.yaml}"
+ls -l "${1:-/app/config/ml_config.yaml}"
+cat "${1:-/app/config/ml_config.yaml}"
+free -m
 # python scripts/run.py
 # python -m src
 # CMD ["python", "-m", "src", "/app/config/app-config.json"]
-# python -m src --config=${1:-/app/config/ml_config.yaml}
-python -m src --config=${1:-config/ml_config.yaml}
+python -m src --config=${1:-/app/config/ml_config.yaml}
+# python -m src --config=${1:-config/ml_config.yaml}
 exit_code=$?
 if [ $exit_code -eq 0 ]; then
     # Run screen module after src completes

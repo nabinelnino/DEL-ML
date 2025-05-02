@@ -1,8 +1,5 @@
-from typing import Dict, List, Union, Tuple
-import csv
-import time
+from typing import Dict, List, Tuple
 import io
-import gzip
 import logging
 import os
 import numpy as np
@@ -42,6 +39,43 @@ class DataReader:
             'MACCS': "HitGenBinaryMACCS",
         }
 
+    def list_gcs_files(self, bucket_name: str, folder_path: str) -> List[str]:
+        """
+        Lists all files in a specific folder (prefix) in a GCS bucket.
+
+        Args:
+            bucket_name (str): The name of the GCS bucket.
+            folder_path (str): The folder path within the bucket (prefix).
+
+        Returns:
+            List[str]: A list of full file paths within the folder.
+        """
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+
+        # Ensure folder_path ends with "/" to match prefix behavior
+        if not folder_path.endswith('/'):
+            folder_path += '/'
+
+        blobs = bucket.list_blobs(prefix=folder_path)
+        file_list = [
+            f"gs://{bucket_name}/{blob.name}" for blob in blobs if not blob.name.endswith('/')]
+
+        return file_list
+
+    def create_model_name(self, dataset_location: str, partner_name: str) -> str:
+        """
+        Create a model name based on the dataset and partner name.
+
+        :param dataset_location: Path to the dataset
+        :param model_name: Name of the model
+        :return: Formatted model name
+        """
+        target_name = dataset_location.split("/")[-1]
+        target_name = target_name.split(".")[0]
+        model_name = f"{target_name}_{partner_name}"
+        return model_name
+
     def _read_data(self, file_path: str, fps: list | str, label: str, model_name: str, config_file_path: str, binarize: bool = True, dry_run: str = True):
         """
         Generic method to read data from local or GCP storage.
@@ -69,9 +103,8 @@ class DataReader:
             isAlreadyExist = ManageModelDataset.manage_model_dataset_yaml(
                 file_path=config_file_path, model_name=model_name, dataset_url=file_path, training_col=fps)
             if isAlreadyExist:
-                print("File and model already exist")
                 sys.exit()
-            X, y = self.read_from_loca_file(
+            X, y = self.read_from_local_parquet_file(
                 file_path, fps, label, binarize, dry_run)
             return X, y
         else:
@@ -118,57 +151,94 @@ class DataReader:
 
         return path_parts[0], path_parts[1]
 
-    def read_from_loca_file(self, file_path, fps, label, binarize, dry_run):
-        logging.info(f"Starting to read file: {file_path}")
+    # def read_from_loca_file(self, file_path, fps, label, binarize, dry_run):
+    #     logging.info(f"Starting to read file: {file_path}")
+    #     logging.info(f"File size: {os.path.getsize(file_path)} bytes")
+    #     X = {}
+    #     y = []
+
+    #     for fp in tqdm(fps):
+    #         if binarize:
+    #             fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(fp, None)
+    #         if fp_key is None:
+    #             raise ValueError(f"cannot make {fp} binary for HitGen")
+    #         else:
+    #             fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(fp)
+    #         y = []
+    #         _x = []
+    #         count = 0
+
+    #         with gzip.open(file_path, 'rt', newline='', encoding='utf-8') as f:
+    #             header = f.readline().strip().split("\t")
+
+    #             label_index = header.index(label)
+    #             fp_idx = header.index(fp)
+    #             for line in tqdm(f):
+
+    #                 if dry_run and count == 10000:
+    #                     break
+    #                 count += 1
+
+    #                 if line.strip() == "":
+    #                     continue
+    #                 splits = line.strip().split("\t")
+
+    #                 y.append(int(splits[label_index]))
+    #                 if binarize:
+    #                     _x.append(
+    #                         [1 if int(_) > 0 else 0 for _ in splits[fp_idx].split(",")])
+    #                 else:
+    #                     _x.append([int(_)
+    #                                for _ in splits[fp_idx].split(",")])
+
+    #             _x = np.array(_x)
+
+    #             if _x.ndim == 1:
+    #                 _x = _x.reshape(-1, 1)
+
+    #             X[fp_key] = _x
+
+    #     logging.info(f"Final shapes - X: {[(k, v.shape) for k, v in X.items()]} \
+    #                 , Y: {np.array(y).shape}")
+
+    #     return X, np.array(y)
+
+    def read_from_local_parquet_file(self, file_path, fps, label, binarize=False, dry_run=False):
+        logging.info(f"Reading Parquet file: {file_path}")
         logging.info(f"File size: {os.path.getsize(file_path)} bytes")
+
+        # Resolve column keys
+        fp_keys = []
+        for fp in fps:
+            key = self.HITGEN_FPS_COLS_MAP_BINARY.get(fp) if binarize else fp
+            if key is None:
+                raise ValueError(
+                    f"No binary mapping found for fingerprint: {fp}")
+            fp_keys.append(key)
+
+        columns_to_read = [label] + fps
+        df = pd.read_parquet(file_path, columns=columns_to_read)
+        if dry_run:
+            df = df.head(10000)
+
+        y = df[label].astype(int).to_numpy()
         X = {}
-        y = []
 
-        for fp in tqdm(fps):
+        for fp, key in zip(fps, fp_keys):
+            # Convert series of lists to 2D NumPy array efficiently
+            arr = np.array(df[fp].tolist())
+
             if binarize:
-                fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(fp, None)
-            if fp_key is None:
-                raise ValueError(f"cannot make {fp} binary for HitGen")
-            else:
-                fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(fp)
-            y = []
-            _x = []
-            count = 0
+                arr = (arr > 0).astype(int)
 
-            with gzip.open(file_path, 'rt', newline='', encoding='utf-8') as f:
-                header = f.readline().strip().split("\t")
+            if arr.ndim == 1:
+                arr = arr.reshape(-1, 1)
 
-                label_index = header.index(label)
-                fp_idx = header.index(fp)
-                for line in tqdm(f):
+            X[key] = arr
 
-                    if dry_run and count == 10000:
-                        break
-                    count += 1
-
-                    if line.strip() == "":
-                        continue
-                    splits = line.strip().split("\t")
-
-                    y.append(int(splits[label_index]))
-                    if binarize:
-                        _x.append(
-                            [1 if int(_) > 0 else 0 for _ in splits[fp_idx].split(",")])
-                    else:
-                        _x.append([int(_)
-                                   for _ in splits[fp_idx].split(",")])
-
-                _x = np.array(_x)
-
-                if _x.ndim == 1:
-                    _x = _x.reshape(-1, 1)
-
-                X[fp_key] = _x
-
-        logging.info(f"Final shapes - X: {[(k, v.shape) for k, v in X.items()]} \
-                    , Y: {np.array(y).shape}")
-
-        return X, np.array(y)
+        logging.info(
+            f"Shapes - X: {[(k, v.shape) for k, v in X.items()]}, y: {y.shape}")
+        return X, y
 
     def read_tsv_from_gcs(self, bucket_name, file_name, columns_of_interest, target_column, binarize: bool = True) -> Tuple[Dict[str, np.ndarray], np.ndarray]:
         """
@@ -186,42 +256,34 @@ class DataReader:
         client = storage.Client()
         bucket = client.get_bucket(bucket_name)
         blob = bucket.blob(file_name)
-        columns_of_interest.append(target_column)
+        # columns_of_interest.append(target_column)
 
         # Download and decompress the file on-the-fly
         with io.BytesIO() as file_buffer:
             blob.download_to_file(file_buffer)
-            file_buffer.seek(0)  # Reset buffer pointer
-            with gzip.GzipFile(fileobj=file_buffer, mode='rb') as gz_file:
-                # Use pandas to read the decompressed .tsv file
-                df = pd.read_csv(gz_file, sep='\t',
-                                 usecols=columns_of_interest)
+            file_buffer.seek(0)
+            df = pd.read_parquet(file_buffer, engine='pyarrow',
+                                 columns=columns_of_interest + [target_column])
 
+        # if dry_run:
+        df = df.head(10000)
+        y = df[target_column].astype(int).to_numpy()
         X = {}
 
-        y = df[target_column].values
-        df = df.drop(target_column, axis=1)
-
-        for column in df.columns:
+        for column in columns_of_interest:
             fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(column)
-            values = df[column].apply(lambda x: [int(val)
-                                      for val in str(x).split(',')]).tolist()
-            values = np.array(values)
+            if fp_key is None:
+                raise ValueError(
+                    f"No binary mapping found for column: {column}")
+            arr = np.array(df[column].tolist())
 
             # Binarize if required
             if binarize:
-                values = np.where(values > 0, 1, 0)
+                arr = (arr > 0).astype(int)
+            if arr.ndim == 1:
+                arr = arr.reshape(-1, 1)
 
-            X[fp_key] = values
-
-            # values = df[column].values
-            # values = df[column].apply(safe_convert_to_int).values
-            # if binarize:
-            #     values = np.where(values > 0, 1, 0)
-
-            # if values.ndim == 1:
-            #     values = values.reshape(-1, 1)
-            #     X[fp_key] = values
+            X[fp_key] = arr
 
         return X, y
 

@@ -1,0 +1,20 @@
+# MLflow configuration
+PORT=5001
+
+# FOR LOCAL
+# USE_EXTERNAL_MLFLOW=false
+# SERVICE_ACCOUNT_PATH=""
+# MLFLOW_TRACKING_URI=""
+
+# Service account configuration (optional)
+# USE_EXTERNAL_MLFLOW=true
+# SERVICE_ACCOUNT_PATH=./service_account.json
+# GOOGLE_APPLICATION_CREDENTIALS=/app/service_account.json
+# MLFLOW_TRACKING_URI="http://34.130.56.87:5000/"
+
+
+# REGION=northamerica-northeast2
+# PROJECT_ID=aircheck-398319
+# ARTIFACT_REGISTRY=ml-training
+# IMAGE_NAME=ml-model
+# TAG=0.0.2

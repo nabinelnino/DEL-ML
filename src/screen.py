@@ -298,19 +298,19 @@ class TopTor(Basefpfunc):
             AllChem.GetHashedTopologicalTorsionFingerprint, **self._kwargs)
 
 
-FPS_FUNCS = {'HitGenBinaryECFP4': ECFP4(),
-             'HitGenBinaryECFP6': ECFP6(),
-             'HitGenBinaryFCFP4': FCFP4(),
-             'HitGenBinaryFCFP6': FCFP6(),
-             '2048-bECFP4': BinaryECFP4(),
-             '2048-bECFP6': BinaryECFP6(),
-             '2048-bFCFP4': BinaryFCFP4(),
-             '2048-bFCFP6': BinaryFCFP6(),
-             'HitGenBinaryMACCS': MACCS(),
-             'HitGenBinaryRDK': RDK(),
-             'HitGenBinaryAvalon': Avalon(),
-             'HitGenBinaryAtomPair': AtomPair(),
-             'HitGenBinaryTopTor': TopTor()}
+FPS_FUNCS = {'ECFP4': ECFP4(),
+             'ECFP6': ECFP6(),
+             'FCFP4': FCFP4(),
+             'FCFP6': FCFP6(),
+             'BinaryECFP4': BinaryECFP4(),
+             'BinaryECFP6': BinaryECFP6(),
+             'BinaryFCFP4': BinaryFCFP4(),
+             'BinaryFCFP6': BinaryFCFP6(),
+             'MACCS': MACCS(),
+             'RDK': RDK(),
+             'AVALON': Avalon(),
+             'ATOMPAIR': AtomPair(),
+             'TOPTOR': TopTor()}
 
 
 def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):
@@ -355,7 +355,7 @@ def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):
 
 
 class Screen:
-    def __init__(self, run_id):
+    def __init__(self, training_cols, is_binary):
         self._models = [[]]
         self._train_preds = []
         self._bayes = None
@@ -365,8 +365,11 @@ class Screen:
         self.output_path = ""
         self.overall_metrics = {}
         self.model_name = ""
+        self.traing_col = training_cols
+        self.is_binary = is_binary
         # self.run_id = run_id
         # print("RUN ID", self.run_id)
+        print("training columns and is_binary iffo---", training_cols, is_binary)
 
     def screen(self, file_path, output_path):
         if file_path.startswith("gs://"):
@@ -607,8 +610,16 @@ class Screen:
         :param smis:
         :return:
         """
-        self._fp_func = ["HitGenBinaryECFP4"]
-        print("hererererer")
+        # self._fp_func = ["HitGenBinaryECFP4"]
+        # fp_key = f"Binary{self._fp_func}" if self.isBinary else self._fp_func
+        fp_keys = [
+            f"Binary{fp}" if self.is_binary else fp for fp in self.traing_col]
+        selected_fps = [FPS_FUNCS[fp] for fp in fp_keys if fp in FPS_FUNCS]
+
+        # selected_fp = FPS_FUNCS.get(fp_key)
+        self._fp_func = selected_fps
+        print("Selected fps--", self._fp_func)
+
         invalid_smiles = [smi for smi in smis if MolFromSmiles(smi) is None]
         if invalid_smiles:
             print(f"Invalid SMILES strings:{invalid_smiles}")
@@ -675,7 +686,8 @@ if __name__ == "__main__":
     result_output = config_dict.get("result_output")
     smile_location = config_dict.get("smile_location")
     isdry_run = config_dict.get("isdry_run", True)
-    screen = Screen()
+
+    screen = Screen(training_cols, is_binary)
     screen.screen(smile_location, result_output)
     t2 = time.time()
     print("total processing time---", t2-t1)

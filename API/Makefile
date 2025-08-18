@@ -1,7 +1,6 @@
 # Makefile for Docker management
 include .env
 
-
 #check env variables
 test-var:
 	@echo "Building image with the following parameters:"
@@ -14,7 +13,6 @@ test-var:
 # Build the Docker image
 build:
 	docker build -t $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG)  --platform=linux/amd64 -f Dockerfile .
-
 
 #push docker image to registry
 push:
@@ -29,8 +27,6 @@ deploy:
 	--min-instances=1 \
 	--region=northamerica-northeast2 \
 	--project=aircheck-398319
-
-
 
 
 

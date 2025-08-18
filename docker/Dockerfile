@@ -47,8 +47,13 @@ COPY entrypoint.sh /app/entrypoint.sh
 
 
 # Set permissions before switching user
-RUN chmod +x /app/entrypoint.sh && \
-    # Create non-root user and set ownership
+# RUN chmod +x /app/entrypoint.sh && \
+#     # Create non-root user and set ownership
+#     useradd -m -r appuser && \
+#     chown -R appuser:appuser /app
+
+RUN sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
     useradd -m -r appuser && \
     chown -R appuser:appuser /app
 

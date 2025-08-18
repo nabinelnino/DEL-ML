@@ -1,3 +1,4 @@
+import pyarrow.parquet as pq
 from typing import Dict, List, Tuple
 import io
 import logging
@@ -10,12 +11,12 @@ from tqdm import tqdm
 from rdkit import DataStructs
 from tqdm import tqdm
 import sys
+import tempfile
 
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.SimDivFilters import rdSimDivPickers
-
-
-from utils.config_parser import ManageModelDataset
+from pyarrow.parquet import ParquetFile
+import pyarrow as pa
 
 
 class DataReader:
@@ -76,7 +77,7 @@ class DataReader:
         model_name = f"{target_name}_{partner_name}"
         return model_name
 
-    def _read_data(self, file_path: str, fps: list | str, label: str, model_name: str, config_file_path: str, binarize: bool = True, dry_run: str = True):
+    def _read_data(self, file_path: str, fps: list | str, label: str, model_name: str, config_file_path: str, binarize: bool = True, dry_run: str = True, list_of_bucket_files=None):
         """
         Generic method to read data from local or GCP storage.
 
@@ -100,23 +101,21 @@ class DataReader:
 
         # Determine file opening method based on storage type
         if not file_path.startswith('gs://'):
-            isAlreadyExist = ManageModelDataset.manage_model_dataset_yaml(
-                file_path=config_file_path, model_name=model_name, dataset_url=file_path, training_col=fps)
-            if isAlreadyExist:
-                sys.exit()
+
             X, y = self.read_from_local_parquet_file(
                 file_path, fps, label, binarize, dry_run)
             return X, y
         else:
-            config_bucket, config_file = self._parse_gcp_path(config_file_path)
-            isAlreadyExist = ManageModelDataset.manage_model_dataset_gcs(bucket_name=config_bucket,
-                                                                         file_path=config_file, model_name=model_name, dataset_url=file_path, training_col=fps)
-            if isAlreadyExist:
-                sys.exit()
-            bucket_name, blob_name = self._parse_gcp_path(file_path)
-            X, y = self.read_tsv_from_gcs(
-                bucket_name, blob_name, fps, label, binarize)
-            return X, y
+            for file in list_of_bucket_files:
+
+                config_bucket, config_file = self._parse_gcp_path(
+                    config_file_path)
+
+                bucket_name, blob_name = self._parse_gcp_path(file_path)
+
+                X, y = self.read_parquet_from_gcs(
+                    bucket_name, blob_name, fps, label, binarize, dry_run)
+                return X, y
 
     def safe_convert_to_int(self, value):
         """
@@ -203,6 +202,11 @@ class DataReader:
 
     #     return X, np.array(y)
 
+    def read_parquet_in_batches(file_path, columns, batch_size=10000):
+        parquet_file = pq.ParquetFile(file_path)
+        for batch in parquet_file.iter_batches(columns=columns, batch_size=batch_size):
+            yield batch.to_pandas()
+
     def read_from_local_parquet_file(self, file_path, fps, label, binarize=False, dry_run=False):
         logging.info(f"Reading Parquet file: {file_path}")
         logging.info(f"File size: {os.path.getsize(file_path)} bytes")
@@ -217,9 +221,20 @@ class DataReader:
             fp_keys.append(key)
 
         columns_to_read = [label] + fps
-        df = pd.read_parquet(file_path, columns=columns_to_read)
+
+        pf = ParquetFile(file_path)
+        total_rows = pf.metadata.num_rows
+        print(f"Total rows: {total_rows}")
+        dry_run = True
         if dry_run:
-            df = df.head(10000)
+
+            rows_to_load = next(pf.iter_batches(
+                columns=columns_to_read, batch_size=10000))
+            df = pa.Table.from_batches([rows_to_load]).to_pandas()
+        else:
+            rows_to_load = next(pf.iter_batches(
+                columns=columns_to_read, batch_size=total_rows))
+            df = pa.Table.from_batches([rows_to_load]).to_pandas()
 
         y = df[label].astype(int).to_numpy()
         X = {}
@@ -240,52 +255,68 @@ class DataReader:
             f"Shapes - X: {[(k, v.shape) for k, v in X.items()]}, y: {y.shape}")
         return X, y
 
-    def read_tsv_from_gcs(self, bucket_name, file_name, columns_of_interest, target_column, binarize: bool = True) -> Tuple[Dict[str, np.ndarray], np.ndarray]:
-        """
-        Reads a .tsv.gz file from a GCP bucket and extracts specified columns.
+    def read_parquet_from_gcs(self, bucket_name, file_name, fps, label, binarize=False, dry_run=False):
+        logging.info(
+            f"Reading Parquet file from GCS: gs://{bucket_name}/{file_name}")
 
-        Args:
-            bucket_name (str): Name of the GCP bucket.
-            file_name (str): Path to the .tsv.gz file within the bucket.
-            columns_of_interest (list): List of column names to extract.
-
-        Returns:
-            pd.DataFrame: DataFrame containing only the specified columns.
-        """
-        # Initialize GCP storage client
+        # Download blob to a temporary local file
         client = storage.Client()
-        bucket = client.get_bucket(bucket_name)
+        bucket = client.bucket(bucket_name)
         blob = bucket.blob(file_name)
-        # columns_of_interest.append(target_column)
 
-        # Download and decompress the file on-the-fly
-        with io.BytesIO() as file_buffer:
-            blob.download_to_file(file_buffer)
-            file_buffer.seek(0)
-            df = pd.read_parquet(file_buffer, engine='pyarrow',
-                                 columns=columns_of_interest + [target_column])
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
+            blob.download_to_filename(tmp_file.name)
+            file_path = tmp_file.name
+            logging.info(f"Downloaded to temp file: {file_path}")
+            logging.info(f"File size: {os.path.getsize(file_path)} bytes")
 
-        # if dry_run:
-        df = df.head(10000)
-        y = df[target_column].astype(int).to_numpy()
-        X = {}
+            # Resolve fingerprint keys
+            fp_keys = []
+            for fp in fps:
+                key = self.HITGEN_FPS_COLS_MAP_BINARY.get(
+                    fp) if binarize else fp
+                if key is None:
+                    raise ValueError(
+                        f"No binary mapping found for fingerprint: {fp}")
+                fp_keys.append(key)
 
-        for column in columns_of_interest:
-            fp_key = self.HITGEN_FPS_COLS_MAP_BINARY.get(column)
-            if fp_key is None:
-                raise ValueError(
-                    f"No binary mapping found for column: {column}")
-            arr = np.array(df[column].tolist())
+            pf = ParquetFile(file_path)
+            total_rows = pf.metadata.num_rows
+            available_columns = pf.schema.names
+            print("Available columns", available_columns)
+            final_label = "Label" if "Label" in available_columns else label
+            print("Using target column:", final_label)
+            print(f"Total rows: {total_rows}")
+            columns_to_read = [final_label] + fps
 
-            # Binarize if required
-            if binarize:
-                arr = (arr > 0).astype(int)
-            if arr.ndim == 1:
-                arr = arr.reshape(-1, 1)
+            if dry_run:
+                rows_to_load = next(pf.iter_batches(
+                    columns=columns_to_read, batch_size=10000))
+            else:
+                rows_to_load = next(pf.iter_batches(
+                    columns=columns_to_read, batch_size=total_rows))
 
-            X[fp_key] = arr
+            df = pa.Table.from_batches([rows_to_load]).to_pandas()
 
-        return X, y
+            y = df[final_label].astype(int).to_numpy()
+            X = {}
+
+            for fp, key in zip(fps, fp_keys):
+                arr = np.array(df[fp].tolist())
+
+                if binarize:
+                    arr = (arr > 0).astype(int)
+
+                if arr.ndim == 1:
+                    arr = arr.reshape(-1, 1)
+
+                X[key] = arr
+
+            logging.info(
+                f"Shapes - X: {[(k, v.shape) for k, v in X.items()]}, y: {y.shape}"
+            )
+
+            return X, y
 
     def cluster_leader_from_array(self, X, thresh: float = 0.65, use_tqdm: bool = False):
         """

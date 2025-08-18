@@ -302,6 +302,8 @@ class ManageModelDataset:
                 if count % 10000 == 0:
                     print("Length of simes", len(smiles), smiles[-1])
 
+            print("total count", count)
+
         return smiles, names
 
     @staticmethod

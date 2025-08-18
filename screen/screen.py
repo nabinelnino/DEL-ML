@@ -1,12 +1,10 @@
-import shutil
-import yaml
+
 import argparse
 import sys
 import time
 
-from utils.data_reader import DataReader
 from utils.config_parser import MLConfigParser
-from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from multiprocessing import Pool
 
 import logging
@@ -16,69 +14,47 @@ from rdkit import RDLogger
 import abc
 import inspect
 import os
-from copy import deepcopy
+
 from functools import partial
 from time import time
-from typing import Dict, Union, Optional
-import pickle
-import gzip
 
-import io
-from typing import Optional
+import pickle
+
+
 from tqdm import tqdm
 from google.cloud import storage
 
-
 import numpy as np
-import numpy.typing as npt
+
 import pandas as pd
-from lightgbm import LGBMClassifier
+
 
 # rdkit imports
 from rdkit.Avalon import pyAvalonTools
-from rdkit.Chem import AllChem, rdMolDescriptors, MolFromSmiles, rdFingerprintGenerator
+from rdkit.Chem import AllChem, rdMolDescriptors, MolFromSmiles
 from rdkit.Chem import RDKFingerprint
 
-from sklearn.metrics import precision_score, recall_score, roc_auc_score, balanced_accuracy_score, \
-    average_precision_score, RocCurveDisplay
-from sklearn.model_selection import StratifiedGroupKFold, StratifiedShuffleSplit
 from tqdm import tqdm
 import mlflow
 import csv
-import mlflow.sklearn
 
 
 from rdkit import DataStructs
-from rdkit.Chem import Mol
-from rdkit.Chem.Scaffolds import MurckoScaffold
 from tqdm import tqdm
 
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.SimDivFilters import rdSimDivPickers
-from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 
 # Some quick helper func to make things easier
 
 
-from sklearn.model_selection import StratifiedShuffleSplit, StratifiedGroupKFold
-from sklearn.metrics import (precision_score, recall_score, roc_auc_score,
-                             balanced_accuracy_score, average_precision_score)
-import matplotlib.pyplot as plt
-from typing import Dict, Union, Optional
-import numpy.typing as npt
-from lightgbm import LGBMClassifier
-from lightgbm import LGBMClassifier, plot_importance
-from sklearn.metrics import roc_curve, RocCurveDisplay
 from multiprocessing import Pool
-from multiprocessing import cpu_count
-from concurrent.futures import ProcessPoolExecutor
-
 
 from utils.config_parser import ManageModelDataset
 from dotenv import load_dotenv
 
 from datetime import date
-import rdkit
+
 RDLogger.DisableLog('rdApp.*')
 today = date.today()
 load_dotenv()
@@ -87,7 +63,6 @@ load_dotenv()
 warnings.filterwarnings(
     "ignore", message="'force_all_finite' was renamed to 'ensure_all_finite'")
 
-# mlflow.set_tracking_uri("http://34.130.56.87:5000/")
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 service_account_path = '../service_account.json'
@@ -212,14 +187,6 @@ class ECFP6(Basefpfunc):
         super().__init__(**{"radius": 3, "nBits": 2048, "useFeatures": False})
         self._func = partial(
             AllChem.GetHashedMorganFingerprint, **self._kwargs)
-
-    # def __init__(self):
-    #     super().__init__(**{"radius": 3, "nBits": 2048, "useFeatures": False})
-    #     self._func = partial(
-    #         rdMolDescriptors.GetMorganFingerprintAsBitVect,
-    #         radius=self._kwargs['radius'],
-    #         nBits=self._kwargs['nBits']
-    #     )
 
 
 class FCFP4(Basefpfunc):

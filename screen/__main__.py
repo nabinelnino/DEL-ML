@@ -1,5 +1,4 @@
-from utils.config_parser import ManageModelDataset
-from utils.data_reader import DataReader
+
 from utils.config_parser import MLConfigParser
 from screen.screen import Screen
 import argparse

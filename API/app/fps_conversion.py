@@ -186,7 +186,6 @@ def screen_smiles(model, smis: list[str], fingerprint_col: list[str]):
     :return:
     """
     _fp_func = fingerprint_col
-    print("smiles---", smis, type(smis))
     invalid_smiles = [smi for smi in smis if MolFromSmiles(smi) is None]
     if invalid_smiles:
         logging.warning("Invalid SMILES strings:", invalid_smiles)
@@ -202,7 +201,7 @@ def screen_smiles(model, smis: list[str], fingerprint_col: list[str]):
         fps.append(list(FPS_FUNCS[_fp](smis)))
 
     test_preds = []
-    print("Fps issss", fps)
+
     for fp in fps:
         test_preds.append(model.predict_proba(fp)[:, 1])
 

@@ -7,7 +7,6 @@ from pydantic import BaseModel
 import pandas as pd
 import io
 import os
-import numpy as np
 import requests
 from app.fps_conversion import screen_smiles
 
@@ -113,13 +112,12 @@ async def process_input(
     list of strings, or an uploaded file) to produce predictions.
 
     It attempts to load the model using multiple MLflow flavors (e.g., sklearn, 
-    lightgbm, xgboost, tensorflow, etc.) until one is successful. Once loaded, 
-    it applies the `screen_smiles` function to the provided input.
+    lightgbm, xgboost, tensorflow, etc.) until one is successful.
 
     Args:
         model_id (str):
-            The registered MLflow model name or model version to load.
-            Example: "my_model/1" or "my_model@production".
+            The registered MLflow model id 
+            Example: "m-c8473a40daaf42288b729df4d471043a".
 
         mlflow_url (str):
             The MLflow Tracking Server URL. This is used to set the tracking URI 
@@ -142,13 +140,12 @@ async def process_input(
 
     Returns:
         Any:
-            The result of the prediction, typically returned from `screen_smiles()`.
+            The result of the prediction.
 
     Notes:
         - The function tries different MLflow model flavors in the following order:
           sklearn, lgbm, xgboost, lightgbm, tensorflow, keras, pytorch, catboost, 
           statsmodels, pyfunc (fallback).
-        - The `screen_smiles` function is applied when `text_input` is provided.
         - If no flavor successfully loads the model, an error is logged but no 
           explicit exception is raised at load time.
     """

@@ -503,24 +503,26 @@ docker run -d  -p 8000:8000 <image name>
 
 ### API Endpoints
 
+You can perform **compound prediction** and view **model statistics** in two ways:
 
-#### 1. Single Compound Prediction
+1.  **API Documentation (recommended)**  
+    Open your browser and go to:  
+    [http://localhost:8000/docs](http://localhost:8000/docs)  
+    This provides an interactive Swagger UI where you can try out the endpoints directly.
+    
+2.  **Using cURL**  
+    You can also send requests from the command line, for example:
+
+#### 1. Compound Prediction
 
 
 ```bash
 
-curl  -X  POST  "http://localhost:8000/process_input"  \
-
-
--H  "Content-Type: application/json"  \
-
--d  '{
-
-"run_id": "your-mlflow-run-id",
-
-"compound": "CCO"
-
-}'
+curl -X 'POST' \
+  'http://localhost:8000/process-input/?model_id=<MODEL_ID>&mlflow_url=<MLFLOW URL>' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'text_input=<COMPOUND>'
 
 
 ```
@@ -531,19 +533,10 @@ curl  -X  POST  "http://localhost:8000/process_input"  \
 
 ```bash
 
-
-curl  -X  POST  "http://localhost:8000/get-metrics"  \
-
--H  "Content-Type: application/json"  \
-
--d  '{
-
-"mlflow_server_url": "your-mlflow server",
-
-"run_id": "your mlflow server run id"
-
-}'
-
+curl -X 'POST' \
+  'http://localhost:8000/get-metrics/?mlflow_server_url=<MLFLOW server>run_id=<RUN-ID>' \
+  -H 'accept: application/json' \
+  -d ''
 
 ```
 
@@ -555,15 +548,37 @@ curl  -X  POST  "http://localhost:8000/get-metrics"  \
 
 
 2. Navigate to **Experiments** tab
-
+![Experiments](images/image.png)
 
 3. Click on your experiment name
 
 
 4. Select the desired model run
-
+![Experiments](images/img2.png)
 
 5. Copy the **Run ID** from the run details
+
+![Experiments](images/img3.png)
+
+### Getting MLflow Model ID
+
+
+1. Access your MLflow server (local: http://localhost:5001)
+
+
+2. Navigate to **Experiments** tab
+
+
+3. Click on your Run name
+![Experiments](images/model1.jpg)
+
+4. Scroll down a bit in Logged models section
+
+5. Click on Model name
+![Experiments](images/model2.jpg)
+
+5. Copy the **Model ID** from the model details
+![Experiments](images/model3.jpg)
 
 
 ## Accessing Screened Results
@@ -574,14 +589,22 @@ After the screening process completes, you'll need to retrieve the results. The 
 
 ### Local Deployment
 
-
 Since the screening runs inside a Docker container, the results are initially stored within the container filesystem. Here's how to access them:
 
+You can run predictions in two ways:
 
-#### Option 1: Copy Files from Container to Local Directory
+1.  **Using Makefile**:
+    
+    `make run_prediction` 
+    
+    This will save the filtered SMILES along with their prediction values in the `data/processed` folder.
+    
+2.  **Using Docker**:  
+    Access the container and run the following command:
+  
 
 
-bash
+#### Copy Files from Container to Local Directory
 
 
 ```bash
@@ -611,7 +634,6 @@ docker  cp  <container_id>:/app/models/  ./local_models/
 
 #### Option 2: Access Files Inside Running Container
 
-bash
 
 ```bash
 
@@ -656,11 +678,11 @@ exit
 
 SMILES,ECFP4,LABEL
 
-CCO,bit_vector_string,1
+CCO,bit_vector_int,1
 
-CCN,bit_vector_string,0
+CCN,bit_vector_int,0
 
-CCC,bit_vector_string,1
+CCC,bit_vector_int,1
 
 
 ```
@@ -670,11 +692,9 @@ CCC,bit_vector_string,1
 
 ```smi
 
-CCO compound_1
-
-CCN compound_2
-
-CCC compound_3
+1,CN(CCCNc1ccccc1[N+](=O)[O-])C(=O)OC(C)(C)C,Z644685424
+2,Clc1ccc(CNC2CCN(Cc3ccccc3)CC2)cc1Br,Z1599246016
+3,COC(=O)c1cncnc1NCCCN(C)Cc1ccccc1,Z2088710703
 
 ```
 

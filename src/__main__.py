@@ -11,7 +11,6 @@ from datetime import datetime
 def main(config_file: str):
     t1 = time.time()
     config = MLConfigParser(config_file, "ml_config")
-    print("Testing config file from here----", config.get_config())
     config_dict = config.get_config()
     training_cols = config_dict.get("columns_of_interest")
     label_col = config_dict.get("target_col")
@@ -38,7 +37,12 @@ def main(config_file: str):
         print("list files-----", list_of_files)
     if not isinstance(list_of_files, list):
         list_of_files = [list_of_files]
+    count = 0
     for file in list_of_files:
+        if count == 1:
+            break
+        count += 1
+
         dataset_location = file
         model_name = reader.create_model_name(
             dataset_location=dataset_location, partner_name=partner_name)

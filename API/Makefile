@@ -28,6 +28,10 @@ deploy:
 	--region=northamerica-northeast2 \
 	--project=aircheck-398319
 
+api-run:
+	docker build -t  api-server .
+	docker run -d  -p 8000:8000 api-server
+
 
 
 # Start services in detached mode and follow logs

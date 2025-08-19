@@ -37,12 +37,7 @@ def main(config_file: str):
         print("list files-----", list_of_files)
     if not isinstance(list_of_files, list):
         list_of_files = [list_of_files]
-    count = 0
     for file in list_of_files:
-        if count == 1:
-            break
-        count += 1
-
         dataset_location = file
         model_name = reader.create_model_name(
             dataset_location=dataset_location, partner_name=partner_name)
@@ -59,7 +54,7 @@ def main(config_file: str):
         for _, fp_val in X.items():
             clusters = reader.cluster_leader_from_array(fp_val)
         end_time_cluster = datetime.now()
-        model_name = "test_experiment"
+        # model_name = "test_experiment"
         print(
             f"time to create cluster is {end_time_cluster - start_time_cluster}")
         start_time_model = datetime.now()
@@ -74,6 +69,7 @@ def main(config_file: str):
         t2 = time.time()
 
         print("Total process time", t2-t1)
+        exit()
 
 
 if __name__ == "__main__":
@@ -86,6 +82,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print("processing starting form here", args.config)
     main(args.config)
-
-# Total process time 1465.4664180278778 using vertex ai core 8
-# python -m src --config ./config/ml_config.yaml

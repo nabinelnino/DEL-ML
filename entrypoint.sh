@@ -21,13 +21,13 @@ echo "Starting training with config: ${1:-/app/config/ml_config.yaml}"
 # Run training
 echo "Starting training with config: ${1:-/app/config/ml_config.yaml}"
 
-# python -m src --config="${1:-/app/config/ml_config.yaml}"
+python -m src --config="${1:-/app/config/ml_config.yaml}"
 
 
-python -m src --config="${1:-/app/config/ml_config.yaml}" && {
-    echo "Training completed successfully, starting screen..."
-    python -m screen --config="${1:-/app/config/ml_config.yaml}"
-}
+# python -m src --config="${1:-/app/config/ml_config.yaml}" && {
+#     echo "Training completed successfully, starting screen..."
+#     python -m screen --config="${1:-/app/config/ml_config.yaml}"
+# }
 
 # Keep container running if using local MLflow
 [ "${USE_EXTERNAL_MLFLOW,,}" = "false" ] && {

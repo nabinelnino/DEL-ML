@@ -29,8 +29,6 @@ from sklearn.metrics import precision_score, recall_score, roc_auc_score, balanc
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedShuffleSplit
 from tqdm import tqdm
 import mlflow
-import mlflow.sklearn
-
 
 from rdkit import DataStructs
 from tqdm import tqdm
@@ -48,7 +46,6 @@ from lightgbm import LGBMClassifier
 from lightgbm import LGBMClassifier
 
 
-from utils.config_parser import ManageModelDataset
 from dotenv import load_dotenv
 import logging
 from datetime import date
@@ -59,11 +56,10 @@ load_dotenv()
 warnings.filterwarnings(
     "ignore", message="'force_all_finite' was renamed to 'ensure_all_finite'")
 
-# mlflow.set_tracking_uri("http://34.130.56.87:5000/")
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
-service_account_path = '../service_account.json'
-# service_account_path = '../app/service_account.json'
+# service_account_path = '../service_account.json'
+service_account_path = '../app/service_account.json'
 
 # Check if the file exists before setting the environment variable
 if os.path.exists(service_account_path):
@@ -115,7 +111,6 @@ def to_list(obj):
 
 
 # some custom metrics on early enrichment
-# (from https://chemrxiv.org/engage/chemrxiv/article-details/6585ddc19138d23161476eb1)
 
 def plate_ppv(y, y_pred, top_n: int = 128):
     y_pred = np.atleast_1d(y_pred)
@@ -261,21 +256,6 @@ class TopTor(Basefpfunc):
             AllChem.GetHashedTopologicalTorsionFingerprint, **self._kwargs)
 
 
-FPS_FUNCS = {'HitGenBinaryECFP4': ECFP4(),
-             'HitGenBinaryECFP6': ECFP6(),
-             'HitGenBinaryFCFP4': FCFP4(),
-             'HitGenBinaryFCFP6': FCFP6(),
-             '2048-bECFP4': BinaryECFP4(),
-             '2048-bECFP6': BinaryECFP6(),
-             '2048-bFCFP4': BinaryFCFP4(),
-             '2048-bFCFP6': BinaryFCFP6(),
-             'HitGenBinaryMACCS': MACCS(),
-             'HitGenBinaryRDK': RDK(),
-             'HitGenBinaryAvalon': Avalon(),
-             'HitGenBinaryAtomPair': AtomPair(),
-             'HitGenBinaryTopTor': TopTor()}
-
-
 def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):
     """
     Generate a cluster id map for already featurized array such that each cluster centroid has a tanimoto similarity
@@ -396,13 +376,11 @@ class Model:
                     mlflow.log_param("featurizer", self._fp_func)
                     mlflow.set_tag("model_type", "lgbm")
                     mlflow.log_param("ensemble", ensemble)
-                    mlflow.lightgbm.autolog(log_input_examples=False, log_model_signatures=True, log_models=True, log_datasets=True, disable=False,
+                    mlflow.lightgbm.autolog(log_input_examples=False, log_model_signatures=True, log_models=False, log_datasets=True, disable=False,
 
                                             exclusive=False, disable_for_unsupported_versions=False, silent=False, registered_model_name=model_name, extra_tags=None)
-
                     if ensemble > 1:
                         mates = []
-                        ensemble_count += 1
 
                         # load in cluster data
                         if isinstance(clusters, str):
@@ -438,13 +416,17 @@ class Model:
                         # save_path = "./models/ensemble_models.pkl"
                         # self.save_models(mates, save_path)
                     else:
-                        for _, x_train in train_data.items():
+                        # Combine all feature sets
+                        combined_features = np.concatenate(
+                            list(train_data.values()), axis=1)
 
-                            clf = LGBMClassifier(n_estimators=150, n_jobs=-1)
-                            clf.fit(x_train, y)
+                        clf = LGBMClassifier(n_estimators=150, n_jobs=-1)
+                        clf.fit(combined_features, y)
 
-                            with open(self.model_file_path, 'wb') as files:
-                                pickle.dump(clf, files)
+                        with open(self.model_file_path, 'wb') as files:
+                            pickle.dump(clf, files)
+
+                        mlflow.lightgbm.log_model(clf, "model")
 
                     mlflow.log_metric("mean_precision", np.mean(
                         self.overall_metrics["precision"]))
@@ -468,9 +450,7 @@ class Model:
                         self.overall_metrics["recall"]))
 
                 except Exception as e:
-                    data = ManageModelDataset()
-                    data.ramove_dataseta_and_model(
-                        config_path, model_name, source)
+
                     raise RuntimeError(f"Eror during MLflow run : {e}")
 
                 run = mlflow.active_run()
@@ -512,9 +492,7 @@ class Model:
             number of ensembles mates to use. Default is 1 (no ensemble)
         :return:
         """
-
         try:
-            mlflow.set_experiment(f"{model_name}_cross_val_{today}")
             for key, val in train_data.items():
 
                 if isinstance(val, str):
@@ -540,128 +518,92 @@ class Model:
                 "PlatePPV": [],
                 "DivPlatePPV": []
             }
-            with mlflow.start_run(run_name="lgbm_"+str("test_run")) as run:
-                try:
-                    self._fp_func = list(train_data.keys())
 
-                    mlflow.log_param("featurizer", self._fp_func)
-                    mlflow.set_tag("model_type", "lgbm")
-                    mlflow.log_param("ensemble", ensemble)
+            try:
+                self._fp_func = list(train_data.keys())
+                s = StratifiedShuffleSplit(test_size=0.2)
 
-                    mlflow.lightgbm.autolog(
-                        log_input_examples=False,
-                        log_model_signatures=True,
-                        log_models=True,
-                        log_datasets=True
-                    )
+                for i, (train_idx, test_idx) in tqdm(enumerate(s.split(list(train_data.values())[0], y, clusters)), desc="Doing Folds"):
+                    y_train = y[train_idx]
+                    y_test = y[test_idx]
 
-                    s = StratifiedShuffleSplit(test_size=0.2)
+                    train_clusters = clusters[train_idx]
 
-                    for i, (train_idx, test_idx) in tqdm(enumerate(s.split(list(train_data.values())[0], y, clusters)), desc="Doing Folds"):
-                        y_train = y[train_idx]
-                        y_test = y[test_idx]
+                    mates = []
+                    all_train_preds = []
 
-                        train_clusters = clusters[train_idx]
+                    t0 = time()
+                    for _, x_train_ in train_data.items():
+                        x_train = x_train_[train_idx]
+                        if ensemble > 1:
+                            # this is the ensemble builder
+                            s2 = StratifiedGroupKFold(
+                                n_splits=ensemble, shuffle=True)
+                            models = []
+                            train_preds = []
 
-                        mates = []
-                        all_train_preds = []
-
-                        t0 = time()
-                        for _, x_train_ in train_data.items():
-                            x_train = x_train_[train_idx]
-                            if ensemble > 1:
-                                # this is the ensemble builder
-                                s2 = StratifiedGroupKFold(
-                                    n_splits=ensemble, shuffle=True)
-                                models = []
-                                train_preds = []
-
-                                for ii, (train_idx2, test_idx2) in tqdm(enumerate(s2.split(x_train, y_train, train_clusters)), desc="Doing ensemble"):
-                                    clf = LGBMClassifier(
-                                        n_estimators=150, n_jobs=-1)
-                                    x_train2 = x_train[train_idx2]
-                                    y_train2 = y_train[train_idx2]
-                                    clf.fit(x_train2, y_train2)
-                                    models.append(deepcopy(clf))
-                                    train_preds.append(
-                                        clf.predict_proba(x_train)[:, 1])
-                                mates.append(models)
-                                all_train_preds.append(train_preds)
-
-                            else:
+                            for ii, (train_idx2, test_idx2) in tqdm(enumerate(s2.split(x_train, y_train, train_clusters)), desc="Doing ensemble"):
                                 clf = LGBMClassifier(
-                                    n_estimators=150, n_jobs=-1, force_col_wise=True)
-                                clf.fit(x_train, y_train)
-                                mates.append([deepcopy(clf)])
-                                all_train_preds.append(
-                                    [clf.predict_proba(x_train)[:, 1]])
-                        fit_time = time() - t0
+                                    n_estimators=150, n_jobs=-1)
+                                x_train2 = x_train[train_idx2]
+                                y_train2 = y_train[train_idx2]
+                                clf.fit(x_train2, y_train2)
+                                models.append(deepcopy(clf))
+                                train_preds.append(
+                                    clf.predict_proba(x_train)[:, 1])
+                            mates.append(models)
+                            all_train_preds.append(train_preds)
 
-                        t0 = time()
-                        test_preds = []
-                        for clf_group, (_, x_test) in zip(mates, train_data.items()):
-                            x_test = x_test[test_idx]
-                            for clf in clf_group:
-                                clf.predict_proba(x_test)
-                                test_preds.append(
-                                    clf.predict_proba(x_test)[:, 1])
-                        test_preds = np.array(test_preds).T
-                        pred_time = time() - t0
+                        else:
+                            clf = LGBMClassifier(
+                                n_estimators=150, n_jobs=-1, force_col_wise=True)
+                            clf.fit(x_train, y_train)
+                            mates.append([deepcopy(clf)])
+                            all_train_preds.append(
+                                [clf.predict_proba(x_train)[:, 1]])
+                    # or however you track fold numbers
+                    fit_time = time() - t0
 
-                        preds = test_preds.mean(axis=1)
-                        discrete_preds = (preds > 0.3).astype(int)
+                    t0 = time()
+                    test_preds = []
+                    for clf_group, (_, x_test) in zip(mates, train_data.items()):
+                        x_test = x_test[test_idx]
+                        for clf in clf_group:
+                            clf.predict_proba(x_test)
+                            test_preds.append(
+                                clf.predict_proba(x_test)[:, 1])
+                    test_preds = np.array(test_preds).T
+                    pred_time = time() - t0
 
-                        ppv = precision_score(y_test, discrete_preds)
-                        recall = recall_score(y_test, discrete_preds)
-                        auc_roc = roc_auc_score(y_test, preds)
-                        ba = balanced_accuracy_score(y_test, discrete_preds)
-                        auc_pr = average_precision_score(y_test, preds)
-                        p_ppv = plate_ppv(y_test, preds, top_n=128)
-                        dp_ppv = diverse_plate_ppv(
-                            y_test, preds, clusters=clusters[test_idx].tolist())
+                    preds = test_preds.mean(axis=1)
+                    discrete_preds = (preds > 0.3).astype(int)
 
-                        overall_res_ensemble["fit_time"].append(fit_time)
-                        overall_res_ensemble["pred_time"].append(pred_time)
-                        overall_res_ensemble["precision"].append(ppv)
-                        overall_res_ensemble["recall"].append(recall)
-                        overall_res_ensemble["balanced_accuracy"].append(ba)
-                        overall_res_ensemble["AUC_ROC"].append(auc_roc)
-                        overall_res_ensemble["AUC_PR"].append(auc_pr)
-                        overall_res_ensemble["PlatePPV"].append(p_ppv)
-                        overall_res_ensemble["DivPlatePPV"].append(dp_ppv)
+                    ppv = precision_score(y_test, discrete_preds)
+                    recall = recall_score(y_test, discrete_preds)
+                    auc_roc = roc_auc_score(y_test, preds)
+                    ba = balanced_accuracy_score(y_test, discrete_preds)
+                    auc_pr = average_precision_score(y_test, preds)
+                    p_ppv = plate_ppv(y_test, preds, top_n=128)
+                    dp_ppv = diverse_plate_ppv(
+                        y_test, preds, clusters=clusters[test_idx].tolist())
 
-                    mlflow.log_metric("mean_precision", np.mean(
-                        overall_res_ensemble["precision"]))
-                    mlflow.log_metric("mean_recall", np.mean(
-                        overall_res_ensemble["recall"]))
-                    mlflow.log_metric("mean_balanced_accuracy", np.mean(
-                        overall_res_ensemble["balanced_accuracy"]))
-                    mlflow.log_metric("mean_AUC_ROC", np.mean(
-                        overall_res_ensemble["AUC_ROC"]))
-                    mlflow.log_metric("mean_AUC_PR", np.mean(
-                        overall_res_ensemble["AUC_PR"]))
-                    mlflow.log_metric("mean_PlatePPV", np.mean(
-                        overall_res_ensemble["PlatePPV"]))
-                    mlflow.log_metric("mean_DivPlatePPV", np.mean(
-                        overall_res_ensemble["DivPlatePPV"]))
+                    overall_res_ensemble["fit_time"].append(fit_time)
+                    overall_res_ensemble["pred_time"].append(pred_time)
+                    overall_res_ensemble["precision"].append(ppv)
+                    overall_res_ensemble["recall"].append(recall)
+                    overall_res_ensemble["balanced_accuracy"].append(ba)
+                    overall_res_ensemble["AUC_ROC"].append(auc_roc)
+                    overall_res_ensemble["AUC_PR"].append(auc_pr)
+                    overall_res_ensemble["PlatePPV"].append(p_ppv)
+                    overall_res_ensemble["DivPlatePPV"].append(dp_ppv)
 
-                    # Standard deviation metrics can also be logged
-                    mlflow.log_metric("std_precision", np.std(
-                        overall_res_ensemble["precision"]))
-                    mlflow.log_metric("std_recall", np.std(
-                        overall_res_ensemble["recall"]))
+                self.overall_metrics = overall_res_ensemble
 
-                    self.overall_metrics = overall_res_ensemble
+            except Exception as e:
 
-                except Exception as e:
-                    data = ManageModelDataset()
-                    data.ramove_dataseta_and_model(
-                        config_path, model_name, source)
-                    raise RuntimeError(f"Error during MLflow run: {e}")
+                raise RuntimeError(f"Error during MLflow run: {e}")
 
         except Exception as e:
-            data = ManageModelDataset()
-            data.ramove_dataseta_and_model(
-                config_path, model_name, source)
+
             logging.info(f"An error occurred: {e}")
             raise

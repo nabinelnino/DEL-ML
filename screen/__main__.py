@@ -1,5 +1,4 @@
-from utils.config_parser import ManageModelDataset
-from utils.data_reader import DataReader
+
 from utils.config_parser import MLConfigParser
 from screen.screen import Screen
 import argparse
@@ -13,7 +12,6 @@ if __name__ == "__main__":
     parser.add_argument('--config', default='config/default_config.yaml',
                         help='Path to configuration file')
     args = parser.parse_args()
-    print("arrrrrr", args.config)
     t1 = time.time()
     config_file = args.config
     config = MLConfigParser(config_file, "ml_config")
@@ -30,7 +28,7 @@ if __name__ == "__main__":
     isdry_run = config_dict.get("isdry_run", True)
     model_directory = config_dict.get("model_save_directory", "/app/models/")
     model_file_path = f"{model_directory}/{model_name}.pkl"
-    screen = Screen(model_file_path)
+    screen = Screen(model_file_path, training_cols, is_binary)
     screen.screen(smile_location, result_output)
     t2 = time.time()
     print("total processing time---", t2-t1)

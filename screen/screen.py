@@ -1,12 +1,10 @@
-import shutil
-import yaml
+
 import argparse
 import sys
 import time
 
-from utils.data_reader import DataReader
 from utils.config_parser import MLConfigParser
-from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from multiprocessing import Pool
 
 import logging
@@ -16,69 +14,47 @@ from rdkit import RDLogger
 import abc
 import inspect
 import os
-from copy import deepcopy
+
 from functools import partial
 from time import time
-from typing import Dict, Union, Optional
-import pickle
-import gzip
 
-import io
-from typing import Optional
+import pickle
+
+
 from tqdm import tqdm
 from google.cloud import storage
 
-
 import numpy as np
-import numpy.typing as npt
+
 import pandas as pd
-from lightgbm import LGBMClassifier
+
 
 # rdkit imports
 from rdkit.Avalon import pyAvalonTools
-from rdkit.Chem import AllChem, rdMolDescriptors, MolFromSmiles, rdFingerprintGenerator
+from rdkit.Chem import AllChem, rdMolDescriptors, MolFromSmiles
 from rdkit.Chem import RDKFingerprint
 
-from sklearn.metrics import precision_score, recall_score, roc_auc_score, balanced_accuracy_score, \
-    average_precision_score, RocCurveDisplay
-from sklearn.model_selection import StratifiedGroupKFold, StratifiedShuffleSplit
 from tqdm import tqdm
 import mlflow
 import csv
-import mlflow.sklearn
 
 
 from rdkit import DataStructs
-from rdkit.Chem import Mol
-from rdkit.Chem.Scaffolds import MurckoScaffold
 from tqdm import tqdm
 
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.SimDivFilters import rdSimDivPickers
-from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 
 # Some quick helper func to make things easier
 
 
-from sklearn.model_selection import StratifiedShuffleSplit, StratifiedGroupKFold
-from sklearn.metrics import (precision_score, recall_score, roc_auc_score,
-                             balanced_accuracy_score, average_precision_score)
-import matplotlib.pyplot as plt
-from typing import Dict, Union, Optional
-import numpy.typing as npt
-from lightgbm import LGBMClassifier
-from lightgbm import LGBMClassifier, plot_importance
-from sklearn.metrics import roc_curve, RocCurveDisplay
 from multiprocessing import Pool
-from multiprocessing import cpu_count
-from concurrent.futures import ProcessPoolExecutor
-
 
 from utils.config_parser import ManageModelDataset
 from dotenv import load_dotenv
 
 from datetime import date
-import rdkit
+
 RDLogger.DisableLog('rdApp.*')
 today = date.today()
 load_dotenv()
@@ -87,7 +63,6 @@ load_dotenv()
 warnings.filterwarnings(
     "ignore", message="'force_all_finite' was renamed to 'ensure_all_finite'")
 
-# mlflow.set_tracking_uri("http://34.130.56.87:5000/")
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 service_account_path = '../service_account.json'
@@ -104,7 +79,6 @@ else:
 def configure_mlflow_tracking():
     # Read MLFLOW_TRACKING_URI from environment variables
     mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', '').strip()
-    print("mlflow uri is----", mlflow_uri)
 
     # If MLFLOW_TRACKING_URI is empty, use the default localhost URI
     if not mlflow_uri:
@@ -214,14 +188,6 @@ class ECFP6(Basefpfunc):
         self._func = partial(
             AllChem.GetHashedMorganFingerprint, **self._kwargs)
 
-    # def __init__(self):
-    #     super().__init__(**{"radius": 3, "nBits": 2048, "useFeatures": False})
-    #     self._func = partial(
-    #         rdMolDescriptors.GetMorganFingerprintAsBitVect,
-    #         radius=self._kwargs['radius'],
-    #         nBits=self._kwargs['nBits']
-    #     )
-
 
 class FCFP4(Basefpfunc):
     def __init__(self):
@@ -298,19 +264,19 @@ class TopTor(Basefpfunc):
             AllChem.GetHashedTopologicalTorsionFingerprint, **self._kwargs)
 
 
-FPS_FUNCS = {'HitGenBinaryECFP4': ECFP4(),
-             'HitGenBinaryECFP6': ECFP6(),
-             'HitGenBinaryFCFP4': FCFP4(),
-             'HitGenBinaryFCFP6': FCFP6(),
-             '2048-bECFP4': BinaryECFP4(),
-             '2048-bECFP6': BinaryECFP6(),
-             '2048-bFCFP4': BinaryFCFP4(),
-             '2048-bFCFP6': BinaryFCFP6(),
-             'HitGenBinaryMACCS': MACCS(),
-             'HitGenBinaryRDK': RDK(),
-             'HitGenBinaryAvalon': Avalon(),
-             'HitGenBinaryAtomPair': AtomPair(),
-             'HitGenBinaryTopTor': TopTor()}
+FPS_FUNCS = {'ECFP4': ECFP4(),
+             'ECFP6': ECFP6(),
+             'FCFP4': FCFP4(),
+             'FCFP6': FCFP6(),
+             'BinaryECFP4': BinaryECFP4(),
+             'BinaryECFP6': BinaryECFP6(),
+             'BinaryFCFP4': BinaryFCFP4(),
+             'BinaryFCFP6': BinaryFCFP6(),
+             'MACCS': MACCS(),
+             'RDK': RDK(),
+             'AVALON': Avalon(),
+             'ATOMPAIR': AtomPair(),
+             'TOPTOR': TopTor()}
 
 
 def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):
@@ -355,7 +321,7 @@ def cluster_leader_from_array(X, thresh: float = 0.65, use_tqdm: bool = False):
 
 
 class Screen:
-    def __init__(self, model_file_location):
+    def __init__(self, model_file_location, training_cols, is_binary):
         self._models = [[]]
         self._train_preds = []
         self._bayes = None
@@ -366,6 +332,8 @@ class Screen:
         self.overall_metrics = {}
         self.model_name = ""
         self.model_file_location = model_file_location
+        self.traing_col = training_cols
+        self.is_binary = is_binary
 
     def screen(self, file_path, output_path):
         if file_path.startswith("gs://"):
@@ -573,7 +541,13 @@ class Screen:
         :param smis:
         :return:
         """
-        self._fp_func = ["HitGenBinaryECFP4"]
+        # self._fp_func = ["HitGenBinaryECFP4"]
+        fp_keys = [
+            f"Binary{fp}" if self.is_binary else fp for fp in self.traing_col]
+        selected_fps = [FPS_FUNCS[fp] for fp in fp_keys if fp in FPS_FUNCS]
+        # self._fp_func = selected_fps
+        self._fp_func = fp_keys
+
         invalid_smiles = [smi for smi in smis if MolFromSmiles(smi) is None]
         if invalid_smiles:
             print(f"Invalid SMILES strings:{invalid_smiles}")
@@ -611,7 +585,6 @@ if __name__ == "__main__":
     parser.add_argument('--config', default='config/default_config.yaml',
                         help='Path to configuration file')
     args = parser.parse_args()
-    print("arrrrrr", args.config)
     t1 = time.time()
     config = MLConfigParser(config_file, "ml_config")
     config_dict = config.get_config()
@@ -625,7 +598,7 @@ if __name__ == "__main__":
     result_output = config_dict.get("result_output")
     smile_location = config_dict.get("smile_location")
     isdry_run = config_dict.get("isdry_run", True)
-    screen = Screen()
+    screen = Screen(training_cols=training_cols, is_binary=is_binary)
     screen.screen(smile_location, result_output)
     t2 = time.time()
     print("total processing time---", t2-t1)

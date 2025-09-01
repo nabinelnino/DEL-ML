@@ -1,12 +1,19 @@
 ml_config:
-  input_data_path: "gs://test-aircheck/mlops-test/subset_WDR91" 
+  # input_data_path: "gs://test-aircheck/mlops-test/subset_WDR91" 
+  # input_data_path: "gs://aircheck-ml-ready/S202309/WDR91.tsv.gz" 
+  input_data_bucket: aircheck-ml-ready
+  input_data_folder: Hitgen_standardization_V2
+  # input_data_bucket: temp-processing
+  # input_data_folder: consolidated_data/FEM1C.parquet
+
   columns_of_interest:
     - ECFP4
-  target_col: Label
+  target_col: LABEL
   is_binarized_data: True
   cluster_generation: True
-  model_name: WDR91_ECFP4-test-vertex
-  processed_file_location: gs://test-aircheck/mlops-test/processed_targets.yaml
+  partner_name: HitGen
+  model_name: WDR91_ECFP4
+  processed_file_location: gs://aircheck-pipeline-process/mlops-live/processed_targets_hitgen_lightgradientboosting_test1.yaml
   isdry_run: True
   smile_location: gs://enamine-vs/dataset/
   result_output: gs://test-aircheck/mlops-test/enamine_WDR91_final.smi
